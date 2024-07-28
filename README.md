@@ -15,7 +15,7 @@ sudo apt install vnstat
 sudo apt install nginx
 ```
 
-#### Usage
+# Usage
 
 ```shell
 git clone https://github.com/RengeRenge/traffic-monitor.git
