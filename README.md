@@ -16,17 +16,27 @@ sudo apt install nginx
 ```
 
 # Usage
-
+- Running
 ```shell
 git clone https://github.com/RengeRenge/traffic-monitor.git
 cd traffic-monitor
-python3 -u traffic_monitor.py
+sudo python3 -u traffic_monitor.py
 ```
 
 - Running in background
 ```shell
-ps aux | grep "traffic_monitor.py" | grep -v "grep" | awk '{print $2}' | xargs kill
-python3 -u traffic_monitor.py &
+sudo nohup python3 -u traffic_monitor.py >/dev/null 2>&1 &
+```
+
+- Kill background traffic_monitor
+```shell
+sudo ps aux | grep "traffic_monitor.py" | grep -v "grep" | awk '{print $2}' | xargs sudo kill
+```
+
+- If you are unwilling to use sudo, you can create a local user and add the user to the sudo list, as restarting nginx requires sudo
+```shell
+sudo visudo
+username ALL=(ALL:ALL) NOPASSWD:ALL
 ```
 
 - Log

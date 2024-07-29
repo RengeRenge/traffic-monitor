@@ -1,4 +1,5 @@
 import json
+import stat
 import subprocess
 import time
 from datetime import datetime, timedelta
@@ -16,7 +17,19 @@ max_bytes = 1024 * 600  # 600KB per file
 # example: traffic.log.1 traffic.log.2 ... traffic.log.10
 backup_count = 10
 
-handler = RotatingFileHandler(log_file_path, maxBytes=max_bytes, backupCount=backup_count)
+class CustomRotatingFileHandler(RotatingFileHandler):
+    def doRollover(self):
+        super().doRollover()
+        os.chmod(self.baseFilename,
+                 stat.S_IRUSR | 
+                 stat.S_IRGRP | 
+                 stat.S_IROTH | 
+                 stat.S_IWUSR | 
+                 stat.S_IWGRP |
+                 stat.S_IWOTH
+                 )
+
+handler = CustomRotatingFileHandler(log_file_path, maxBytes=max_bytes, backupCount=backup_count)
 handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 logger = logging.getLogger('TrafficLog')
@@ -61,8 +74,7 @@ def get_vnstat_traffic_today(interface):
 
 def stop_nginx():
     try:
-        nginx_check = subprocess.run("ps aux | grep -v grep | grep -c nginx", shell=True, capture_output=True, text=True)
-        if int(nginx_check.stdout.strip()) > 0:
+        if nginx_status():
             subprocess.run(["nginx", "-s", "stop"], check=True)
             logger.info("nginx has been stopped")
         else:
@@ -72,10 +84,21 @@ def stop_nginx():
 
 def start_nginx():
     try:
-        subprocess.run(["nginx"], check=True)
-        logger.info("nginx has been started")
+        if nginx_status() == False:
+            subprocess.run(["nginx"], check=True)
+            logger.info("nginx has been started")
+        else:
+            logger.info("nginx has been started before")
     except subprocess.CalledProcessError as e:
         logger.error(f"failed to start nginx: {e}")
+
+def nginx_status():
+    try:
+        nginx_check = subprocess.run("ps aux | grep -v grep | grep -c nginx", shell=True, capture_output=True, text=True)
+        int(nginx_check.stdout.strip()) > 0
+    except subprocess.CalledProcessError as e:
+        logger.error(f"failed to check nginx status: {e}")
+        return False
 
 def main():
     logger.info("starting traffic monitoring...")
