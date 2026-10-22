@@ -95,23 +95,32 @@ def start_nginx():
 def nginx_status():
     try:
         nginx_check = subprocess.run("ps aux | grep -v grep | grep -c nginx", shell=True, capture_output=True, text=True)
-        int(nginx_check.stdout.strip()) > 0
-    except subprocess.CalledProcessError as e:
+        return int(nginx_check.stdout.strip()) > 0
+    except Exception as e:
         logger.error(f"failed to check nginx status: {e}")
         return False
 
 def main():
     logger.info("starting traffic monitoring...")
+    blocked_date = None
     while True:
         if check_traffic_exceeded():
-            logger.warning("traffic threshold exceeded. stopping nginx...")
-            stop_nginx()
-            
-            twelve_hours_later = datetime.now() + timedelta(hours=12, seconds=1)
-            logger.info(f"nginx will be restarted at {twelve_hours_later.strftime('%Y-%m-%d %H:%M:%S')}")
-            time.sleep((twelve_hours_later - datetime.now()).total_seconds())
+            today = datetime.now().date()
+            if blocked_date != today:
+                logger.warning("traffic threshold exceeded. stopping nginx...")
+                stop_nginx()
 
-            start_nginx()
+                if nginx_status():
+                    logger.error("nginx is still running after stop attempt; retry next check")
+                    time.sleep(60)
+                    continue
+
+                blocked_date = today
+                twelve_hours_later = datetime.now() + timedelta(hours=12, seconds=1)
+                logger.info(f"nginx will be restarted at {twelve_hours_later.strftime('%Y-%m-%d %H:%M:%S')}")
+                time.sleep((twelve_hours_later - datetime.now()).total_seconds())
+
+                start_nginx()
 
         time.sleep(60)
 
